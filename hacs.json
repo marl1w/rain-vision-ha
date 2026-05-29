@@ -1,0 +1,6 @@
+{
+  "name": "rain-vision-ha",
+  "render_readme": true,
+  "domains": ["rain_vision_ha"],
+  "homeassistant": "2024.6.0"
+}
