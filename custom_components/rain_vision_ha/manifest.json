@@ -1,0 +1,23 @@
+{
+  "domain": "rain_vision_ha",
+  "name": "rain-vision-ha",
+  "after_dependencies": ["bluetooth"],
+  "bluetooth": [
+    {
+      "local_name": "CDC*",
+      "connectable": true
+    },
+    {
+      "local_name": "PLD*",
+      "connectable": true
+    }
+  ],
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/marl1w/rain-vision-ha",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/marl1w/rain-vision-ha/issues",
+  "import_executor": true,
+  "requirements": ["bleak-retry-connector>=3.9.0"],
+  "version": "0.1.0"
+}

@@ -1,0 +1,62 @@
+{
+  "title": "rain-vision-ha",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up rain-vision-ha",
+        "description": "Choose a discovered controller and enter the 6 digit device password.",
+        "data": {
+          "device": "Device",
+          "password": "Password",
+          "enabled_zones": "Enabled zones"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Set up {name}",
+        "description": "Enter the 6 digit device password.",
+        "data": {
+          "password": "Password",
+          "enabled_zones": "Enabled zones"
+        }
+      }
+    },
+    "error": {
+      "invalid_password": "Password must be exactly 6 digits.",
+      "invalid_zones": "Select at least one zone.",
+      "device_not_found": "The selected device is no longer visible. Scan again and retry.",
+      "no_devices_found": "No supported Rain Vision controllers were found nearby.",
+      "cannot_connect": "Could not connect to the device.",
+      "unsupported_device": "This is not a supported CDC 6-zone firmware 5.0 device."
+    },
+    "abort": {
+      "already_configured": "This device is already configured.",
+      "no_devices_found": "No supported Rain Vision controllers were found nearby. Keep the controller awake and retry.",
+      "not_connectable": "The Bluetooth device is not connectable.",
+      "unsupported_device": "This is not a supported CDC 6-zone device."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "rain-vision-ha options",
+        "data": {
+          "password": "Password",
+          "enabled_zones": "Enabled zones",
+          "poll_window_enabled": "Restrict polling to a time window",
+          "poll_window_start": "Polling window start",
+          "poll_window_end": "Polling window end"
+        },
+        "data_description": {
+          "poll_window_enabled": "When disabled, the device is polled around the clock.",
+          "poll_window_start": "Start of the time range during which BLE polling is allowed.",
+          "poll_window_end": "End of the time range. Can span midnight (e.g. 22:00 – 06:00)."
+        }
+      }
+    },
+    "error": {
+      "invalid_password": "Password must be exactly 6 digits.",
+      "invalid_zones": "Select at least one zone.",
+      "cannot_connect": "Could not connect to the device."
+    }
+  }
+}
