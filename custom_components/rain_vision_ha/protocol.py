@@ -386,15 +386,19 @@ class RainVisionCdcClient:
         if self._status_callback is not None:
             self._status_callback(state, message)
 
-    def _service_info_from_product_id(self) -> bluetooth.BluetoothServiceInfoBleak | None:
+    def _service_info_from_product_id(
+        self,
+        *,
+        connectable: bool,
+    ) -> bluetooth.BluetoothServiceInfoBleak | None:
         """Return the best current advertisement for the configured product ID."""
 
         if self.product_id is None:
             return None
 
         best: bluetooth.BluetoothServiceInfoBleak | None = None
-        for service_info in bluetooth.async_discovered_service_info(self.hass, connectable=True):
-            if not service_info.connectable or not is_cdc_advertisement(service_info):
+        for service_info in bluetooth.async_discovered_service_info(self.hass, connectable=connectable):
+            if not is_cdc_advertisement(service_info):
                 continue
 
             advertisement = decode_advertisement(service_info)
@@ -414,22 +418,38 @@ class RainVisionCdcClient:
     ) -> bluetooth.BluetoothServiceInfoBleak | None:
         """Resolve the latest advertisement for this controller."""
 
-        service_info = self._service_info_from_product_id()
+        service_info = self._service_info_from_product_id(connectable=True)
+        if service_info is None:
+            service_info = self._service_info_from_product_id(connectable=False)
         if service_info is None:
             service_info = bluetooth.async_last_service_info(
                 self.hass,
                 self.address,
                 connectable=True,
             )
+        if service_info is None:
+            service_info = bluetooth.async_last_service_info(
+                self.hass,
+                self.address,
+                connectable=False,
+            )
 
         if service_info is None and allow_active_scan:
             await bluetooth.async_request_active_scan(self.hass)
-            service_info = self._service_info_from_product_id()
+            service_info = self._service_info_from_product_id(connectable=True)
+            if service_info is None:
+                service_info = self._service_info_from_product_id(connectable=False)
             if service_info is None:
                 service_info = bluetooth.async_last_service_info(
                     self.hass,
                     self.address,
                     connectable=True,
+                )
+            if service_info is None:
+                service_info = bluetooth.async_last_service_info(
+                    self.hass,
+                    self.address,
+                    connectable=False,
                 )
 
         if service_info is not None:
@@ -446,6 +466,12 @@ class RainVisionCdcClient:
 
         await self._resolve_service_info(allow_active_scan=True)
         ble_device = bluetooth.async_ble_device_from_address(self.hass, self.address, connectable=True)
+        if ble_device is None:
+            ble_device = bluetooth.async_ble_device_from_address(
+                self.hass,
+                self.address,
+                connectable=False,
+            )
         if ble_device is None:
             self._emit_status("not_discoverable")
             raise RainVisionError("Bluetooth device is not available or not connectable")

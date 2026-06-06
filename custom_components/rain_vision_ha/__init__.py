@@ -41,6 +41,10 @@ SERVICE_STOP = "stop_irrigation"
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up rain-vision-ha from a config entry without blocking startup."""
 
+    # Import panel / advisor lazily to keep module import as light as possible.
+    from .advisor import async_setup_advisor
+    from .panel import async_setup_panel
+
     address = entry.data[CONF_ADDRESS]
     product_id = entry.data.get(CONF_PRODUCT_ID)
     if product_id is None:
@@ -83,6 +87,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator.enabled_zones = set(configured_zones or range(1, CDC_ZONES + 1))
     coordinator.manual_totals = coordinator.mask_disabled_zones(coordinator.manual_totals)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    await async_setup_panel(hass)
+    await async_setup_advisor(hass)
+
+    # Register this coordinator so the advisor tracks its next_irrigation changes
+    advisor_service = hass.data[DOMAIN].get("_advisor_service")
+    if advisor_service is not None:
+        advisor_service.register_coordinator(entry.entry_id, coordinator, entry)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -96,6 +108,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
+        # Cancel the advisor's coordinator listener for this entry
+        unsub = hass.data[DOMAIN].get("_advisor_unsubs", {}).pop(entry.entry_id, None)
+        if unsub is not None:
+            unsub()
         hass.data[DOMAIN].pop(entry.entry_id)
     return unload_ok
 

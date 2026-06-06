@@ -1,7 +1,7 @@
 {
   "domain": "rain_vision_ha",
   "name": "rain-vision-ha",
-  "after_dependencies": ["bluetooth"],
+  "after_dependencies": ["bluetooth", "panel_custom"],
   "bluetooth": [
     {
       "local_name": "CDC*",

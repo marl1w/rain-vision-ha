@@ -17,6 +17,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -183,6 +184,7 @@ async def async_setup_entry(
     for zone in enabled_zones:
         entities.append(RainVisionZoneRemainingSensor(coordinator, entry, zone))
 
+    entities.append(RainVisionDailyIrrigationSensor(coordinator, entry, enabled_zones))
     async_add_entities(entities)
 
 
@@ -370,3 +372,64 @@ class RainVisionNextDeviceRefreshSensor(RainVisionBaseSensor):
             "poll_in_progress": self.coordinator._poll_in_progress,
             "last_poll_completed": completed.isoformat() if completed else None,
         }
+
+
+class RainVisionDailyIrrigationSensor(CoordinatorEntity[RainVisionCdcCoordinator], SensorEntity):
+    """Single sensor tracking today's total irrigation with per-zone attributes.
+
+    State: total minutes irrigated today across all zones.
+    Attributes: per-zone breakdown (zone_1, zone_2, …).
+
+    Updates via dispatcher when the advisor captures an irrigation event at
+    schedule time, and at midnight via a separate reset callback.
+    """
+
+    _attr_has_entity_name = True
+    _attr_name = "Today's Irrigation"
+    _attr_icon = "mdi:water"
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self,
+        coordinator: RainVisionCdcCoordinator,
+        entry: ConfigEntry,
+        enabled_zones: list[int],
+    ) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._enabled_zones = enabled_zones
+        self._attr_unique_id = f"{entry.unique_id}_daily_irrigation"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.unique_id or entry.entry_id)},
+        )
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        # Update whenever the advisor captures an irrigation event or resets at midnight
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{DOMAIN}_irrigation_updated_{self._entry.entry_id}",
+                self.async_write_ha_state,
+            )
+        )
+
+    @property
+    def native_value(self) -> int:
+        irrigation = self._get_irrigation()
+        return sum(irrigation.values()) if irrigation else 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        irrigation = self._get_irrigation()
+        return {
+            f"zone_{zk}": irrigation.get(zk, 0)
+            for zk in [str(z) for z in self._enabled_zones]
+        }
+
+    def _get_irrigation(self) -> dict[str, int]:
+        service = self.hass.data.get(DOMAIN, {}).get("_advisor_service")
+        if service is None:
+            return {}
+        return service.get_today_irrigation(self._entry.entry_id)
